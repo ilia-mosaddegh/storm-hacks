@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { ResultPayload } from '@/types/app';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 export default function ResultScreen() {
   const router = useRouter();
@@ -18,6 +18,8 @@ export default function ResultScreen() {
     durationSec: params.durationSec ? Number(params.durationSec) : undefined,
     language: typeof params.language === 'string' ? params.language : undefined,
   };
+
+  // React state to store AI's 
 
   // Fallback mock if any key is missing
   const landmark: ResultPayload = {
