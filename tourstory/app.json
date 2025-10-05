@@ -9,8 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "We use your photo library to let you select a landmark picture."
+      }
     },
+
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -35,7 +38,7 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {
-            "backgroundColor": "#0B0F19"
+            "backgroundColor": "#000000"
           }
         }
       ]
