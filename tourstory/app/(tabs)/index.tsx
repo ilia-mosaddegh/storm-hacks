@@ -26,11 +26,14 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
 
-      <TouchableOpacity style={styles.secondaryButton}>
-        <Text style={styles.secondaryButtonText}>Choose Photo from Gallery</Text>
-      </TouchableOpacity>
-    </View>
-  );
+<TouchableOpacity
+  style={styles.secondaryButton}
+  /* onPress={() => router.push('/result')} */
+>
+  <Text style={styles.secondaryButtonText}>Choose Photo from Gallery</Text>
+</TouchableOpacity>
+</View>
+);
 }
 
 const styles = StyleSheet.create({
