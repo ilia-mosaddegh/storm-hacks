@@ -20,7 +20,7 @@ export default function HomeScreen() {
       {/* buttons */}
       <TouchableOpacity
         style={styles.primaryButton}
-        onPress={() => router.push('/camera')}   // 👈 navigate to new screen
+        onPress={() => router.push('/camera')}  
       >
         <Text style={styles.primaryButtonText}>Scan Landmark</Text>
       </TouchableOpacity>
