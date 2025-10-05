@@ -185,20 +185,20 @@ export default function ResultScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B0F19' },
+  container: { flex: 1, backgroundColor: '#121828' },
   content: { padding: 16, alignItems: 'center' },
   headerImage: { width: '100%', height: 220, borderRadius: 12, marginBottom: 16 },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12, justifyContent: 'center' },
-  chip: { borderColor: '#7C9CFF', borderWidth: 1, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 10 },
-  chipActive: { backgroundColor: '#7C9CFF' },
+  chip: { borderColor: '#5085bbff', borderWidth: 1, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 10 },
+  chipActive: { backgroundColor: '#5085bbff' },
   chipText: { color: '#E6E9EF', fontSize: 12, textTransform: 'capitalize' },
   loadingBox: { alignItems: 'center', marginVertical: 12 },
   loadingText: { color: '#9AA3B2', marginTop: 8 },
-  card: { backgroundColor: '#121828', borderRadius: 12, padding: 16, gap: 8, width: '100%' },
+  card: { backgroundColor: '#232b42ff', borderRadius: 12, padding: 16, gap: 8, width: '100%' },
   title: { color: '#E6E9EF', fontSize: 22, fontWeight: '700' },
   location: { color: '#A6B0C3' },
   summary: { color: '#C9D1E1', marginTop: 6 },
   story: { color: '#C9D1E1', marginTop: 10, lineHeight: 20 },
-  playBtn: { marginTop: 12, backgroundColor: '#7C9CFF', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12, alignSelf: 'flex-start' },
+  playBtn: { marginTop: 12, backgroundColor: '#5085bbff', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12, alignSelf: 'flex-start' },
   playBtnText: { color: '#fff', fontWeight: '600' },
 });
