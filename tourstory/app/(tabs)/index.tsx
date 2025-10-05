@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
+  const router = useRouter();
   return (
     <View style={styles.container}>
       {/* header image */}
@@ -16,9 +18,13 @@ export default function HomeScreen() {
       <Text style={styles.subtitle}>Point at a landmark. Hear its story.</Text>
 
       {/* buttons */}
-      <TouchableOpacity style={styles.primaryButton}>
+      <TouchableOpacity
+        style={styles.primaryButton}
+        onPress={() => router.push('/camera')}   // 👈 navigate to new screen
+      >
         <Text style={styles.primaryButtonText}>Scan Landmark</Text>
       </TouchableOpacity>
+
 
       <TouchableOpacity style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Choose Photo from Gallery</Text>
