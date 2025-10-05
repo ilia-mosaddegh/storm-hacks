@@ -6,15 +6,12 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-// 👇 Import the PlayerProvider (adjust the path if needed)
 import { PlayerProvider } from '../_providers/PlayerProvider'; 
-// If your folder structure is different, try './_providers/PlayerProvider' or '../../_providers/PlayerProvider'
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    // 👇 Wrap Tabs inside PlayerProvider
     <PlayerProvider>
       <Tabs
         screenOptions={{
