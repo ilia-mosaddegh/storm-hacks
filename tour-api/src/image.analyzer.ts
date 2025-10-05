@@ -1,4 +1,3 @@
-// src/image.analyzer.ts
 import sharp from "sharp";
 
 export type ImageAnalysis = {
