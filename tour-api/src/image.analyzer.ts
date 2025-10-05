@@ -3,21 +3,19 @@ import sharp from "sharp";
 export type ImageAnalysis = {
   width: number | null;
   height: number | null;
-  format: string | undefined;
+  format?: string;
   dominant: { r: number; g: number; b: number } | null;
 };
 
-export async function analyzeImage(buffer: Buffer): Promise<ImageAnalysis> {
-  const img = sharp(buffer);
-  const meta = await img.metadata();
-  const stats = await img.stats().catch(() => null);
+/**
+ * Reads basic metadata and a crude dominant color from a 1x1 thumbnail.
+ */
+export async function analyzeImage(buf: Buffer): Promise<ImageAnalysis> {
+  const meta = await sharp(buf).metadata();
+  const { width = null, height = null, format } = meta;
 
-  return {
-    width: meta.width ?? null,
-    height: meta.height ?? null,
-    format: meta.format,
-    dominant: stats
-      ? { r: stats.dominant.r, g: stats.dominant.g, b: stats.dominant.b }
-      : null,
-  };
+  // Reduce to 1x1 to approximate dominant color
+  const { data } = await sharp(buf).resize(1, 1).raw().toBuffer({ resolveWithObject: true });
+  const [r, g, b] = Array.from(data);
+  return { width, height, format, dominant: { r, g, b } };
 }
