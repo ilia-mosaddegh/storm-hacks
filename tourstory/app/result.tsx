@@ -1,150 +1,204 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import type { ResultPayload } from '@/types/app';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
+import { useLocalSearchParams } from 'expo-router';
+import { Audio } from 'expo-av';
+// (Ionicons is optional; if you don't have @expo/vector-icons installed, remove icon usage)
+// import { Ionicons } from '@expo/vector-icons';
+
+type ResultStatus =
+  | 'queued'
+  | 'identifying'
+  | 'facts_fetching'
+  | 'story_writing'
+  | 'tts_rendering'
+  | 'done';
+
+type ResultPayload = {
+  requestId: string;
+  imageUrl?: string;
+  status: ResultStatus;
+  title?: string;
+  location?: string;
+  summary?: string;
+  story?: string;
+  durationSec?: number;
+};
 
 export default function ResultScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<{ requestId?: string; imageUrl?: string }>();
+  const requestId = String(params.requestId ?? '');
+  const imageUrl = String(params.imageUrl ?? '');
 
-  // Convert URL params (strings) into the shape we want
-  const fromParams: Partial<ResultPayload> = {
-    landmarkId: typeof params.landmarkId === 'string' ? params.landmarkId : undefined,
-    title: typeof params.title === 'string' ? params.title : undefined,
-    location: typeof params.location === 'string' ? params.location : undefined,
-    summary: typeof params.summary === 'string' ? params.summary : undefined,
-    story: typeof params.story === 'string' ? params.story : undefined,
-    imageUrl: typeof params.imageUrl === 'string' ? params.imageUrl : undefined,
-    durationSec: params.durationSec ? Number(params.durationSec) : undefined,
-    language: typeof params.language === 'string' ? params.language : undefined,
-  };
+  const [data, setData] = useState<ResultPayload>({
+    requestId,
+    imageUrl,
+    status: 'queued',
+  });
 
-  // Fallback mock if any key is missing
-  const landmark: ResultPayload = {
-    landmarkId: fromParams.landmarkId ?? 'gastown_steam_clock',
-    title: fromParams.title ?? 'Gastown Steam Clock',
-    location: fromParams.location ?? 'Vancouver, BC',
-    summary:
-      fromParams.summary ??
-      'Built in 1977 by Raymond Saunders, the Gastown Steam Clock was designed to harness steam power from the city’s underground system.',
-    story:
-      fromParams.story ??
-      'In the heart of Gastown, a curious clock breathes steam instead of ticking time. This Victorian-style landmark was built in 1977 and has become one of Vancouver’s most photographed attractions...',
-    imageUrl:
-      fromParams.imageUrl ??
-      'https://upload.wikimedia.org/wikipedia/commons/2/2a/Gastown_Steam_Clock_2023.jpg',
-    durationSec: fromParams.durationSec ?? 75,
-    language: fromParams.language ?? 'en',
-  };
+  // ---- Simulate backend processing (your existing code) ----
+  useEffect(() => {
+    const steps: ResultStatus[] = [
+      'queued',
+      'identifying',
+      'facts_fetching',
+      'story_writing',
+      'tts_rendering',
+      'done',
+    ];
+    let i = 0;
+    setData((d) => ({ ...d, status: steps[i] }));
 
-  const [expanded, setExpanded] = useState(false);
+    const timer = setInterval(() => {
+      i++;
+      if (i < steps.length) {
+        if (steps[i] === 'done') {
+          setData((d) => ({
+            ...d,
+            status: 'done',
+            title: 'Vancouver Art Gallery',
+            location: 'Vancouver, BC',
+            summary:
+              'A former 1906 courthouse transformed into a major art institution showcasing Canadian and Indigenous art.',
+            story:
+              'Once a neoclassical courthouse, this building became a cultural hub after the 1983 transformation. Its steps have seen protests, performances, and countless first dates. Inside, rotating exhibitions tell layered stories of the city’s artists and visitors.',
+            durationSec: 42,
+          }));
+          clearInterval(timer);
+        } else {
+          setData((d) => ({ ...d, status: steps[i] }));
+        }
+      }
+    }, 900);
 
-    <ScrollView style={styles.container}>
-      {/* landmark image */}
-      <Image source={{ uri: landmark.imageUrl }} style={styles.headerImage} />
+    return () => clearInterval(timer);
+  }, []);
 
-      {/* title + location */}
-      <Text style={styles.title}>{landmark.title}</Text>
-      <Text style={styles.location}>{landmark.location}</Text>
+  // ---- AUDIO: state + cleanup ----
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
-      {/* summary */}
-      <Text style={styles.summary}>{landmark.summary}</Text>
+  // (iOS) allow playback even if the silent switch is on
+  useEffect(() => {
+    Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+    }).catch(() => {});
+  }, []);
 
-      {/* story text */}
-      <Text style={styles.story}>
-        {expanded ? landmark.story : landmark.story.slice(0, 150) + '...'}
-      </Text>
+  // unload sound when component unmounts or sound instance changes
+  useEffect(() => {
+    return () => {
+      sound?.unloadAsync().catch(() => {});
+    };
+  }, [sound]);
 
-      {/* read more toggle */}
-      <TouchableOpacity onPress={() => setExpanded(!expanded)}>
-        <Text style={styles.readMore}>{expanded ? 'Read less' : 'Read more'}</Text>
-      </TouchableOpacity>
+  // ---- AUDIO: play/pause toggle ----
+  async function togglePlay() {
+    try {
+      if (!sound) {
+        const { sound: s } = await Audio.Sound.createAsync(
+          require('@/assets/audio/story.mp3'),
+          { shouldPlay: true }
+        );
+        setSound(s);
+        setIsPlaying(true);
+        s.setOnPlaybackStatusUpdate((st) => {
+          if (!st || !('isLoaded' in st) || !st.isLoaded) return;
+          if ('didJustFinish' in st && st.didJustFinish) {
+            setIsPlaying(false);
+          }
+        });
+      } else {
+        const status = await sound.getStatusAsync();
+        if ('isPlaying' in status && status.isPlaying) {
+          await sound.pauseAsync();
+          setIsPlaying(false);
+        } else {
+          await sound.playAsync();
+          setIsPlaying(true);
+        }
+      }
+    } catch (e) {
+      console.warn('Audio error', e);
+    }
+  }
 
-      {/* main buttons */}
-      <TouchableOpacity
-        style={styles.primaryButton}
-        onPress={() => router.push('/nowplaying')}
-      >
-        <Text style={styles.primaryButtonText}>Play Narration</Text>
-      </TouchableOpacity>
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Header image */}
+      {!!imageUrl && (
+        <Image source={{ uri: imageUrl }} style={styles.headerImage} contentFit="cover" />
+      )}
 
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={() => alert('Bookmarked! (mock)')}
-      >
-        <Text style={styles.secondaryButtonText}>Bookmark</Text>
-      </TouchableOpacity>
+      {/* Status chips */}
+      <View style={styles.chipsRow}>
+        {(['queued','identifying','facts_fetching','story_writing','tts_rendering','done'] as const).map(
+          (s) => (
+            <View
+              key={s}
+              style={[
+                styles.chip,
+                data.status === s && styles.chipActive,
+              ]}
+            >
+              <Text style={styles.chipText}>{s.replace('_', ' ')}</Text>
+            </View>
+          )
+        )}
+      </View>
 
-      {/* retry button (for demo of error state) */}
-      {/* <TouchableOpacity style={styles.secondaryButton}>
-        <Text style={styles.secondaryButtonText}>Retry</Text>
-      </TouchableOpacity> */}
-    </ScrollView> ;
+      {/* Loading state while not done */}
+      {data.status !== 'done' && (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator />
+          <Text style={styles.loadingText}>
+            {data.status === 'queued' && 'Queuing your request…'}
+            {data.status === 'identifying' && 'Identifying the landmark…'}
+            {data.status === 'facts_fetching' && 'Fetching historical facts…'}
+            {data.status === 'story_writing' && 'Writing your audio story…'}
+            {data.status === 'tts_rendering' && 'Rendering narration…'}
+          </Text>
+        </View>
+      )}
+
+      {/* Final content */}
+      {data.status === 'done' && (
+        <View style={styles.card}>
+          <Text style={styles.title}>{data.title}</Text>
+          <Text style={styles.location}>{data.location}</Text>
+          <Text style={styles.summary}>{data.summary}</Text>
+          <Text style={styles.story}>{data.story}</Text>
+
+          {/* Play / Pause button */}
+          <TouchableOpacity style={styles.playBtn} onPress={togglePlay}>
+            {/* If using Ionicons:
+            <Ionicons name={isPlaying ? 'pause' : 'play'} size={18} color="#fff" style={{ marginRight: 6 }} />
+            */}
+            <Text style={styles.playBtnText}>{isPlaying ? 'Pause' : 'Play'} story</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B0F19',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-  },
-  headerImage: {
-    width: '100%',
-    height: 220,
-    borderRadius: 16,
-    marginBottom: 20,
-  },
-  title: {
-    color: '#E6E9EF',
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  location: {
-    color: '#9AA3B2',
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  summary: {
-    color: '#E6E9EF',
-    fontSize: 16,
-    marginBottom: 12,
-    lineHeight: 22,
-  },
-  story: {
-    color: '#E6E9EF',
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 10,
-  },
-  readMore: {
-    color: '#7C9CFF',
-    fontWeight: '600',
-    marginBottom: 25,
-  },
-  primaryButton: {
-    backgroundColor: '#7C9CFF',
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginBottom: 12,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: '#7C9CFF',
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginBottom: 60,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: '#7C9CFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: '#0B0F19' },
+  content: { padding: 16, alignItems: 'center' },
+  headerImage: { width: '100%', height: 220, borderRadius: 12, marginBottom: 16 },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12, justifyContent: 'center' },
+  chip: { borderColor: '#7C9CFF', borderWidth: 1, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 10 },
+  chipActive: { backgroundColor: '#7C9CFF' },
+  chipText: { color: '#E6E9EF', fontSize: 12, textTransform: 'capitalize' },
+  loadingBox: { alignItems: 'center', marginVertical: 12 },
+  loadingText: { color: '#9AA3B2', marginTop: 8 },
+  card: { backgroundColor: '#121828', borderRadius: 12, padding: 16, gap: 8, width: '100%' },
+  title: { color: '#E6E9EF', fontSize: 22, fontWeight: '700' },
+  location: { color: '#A6B0C3' },
+  summary: { color: '#C9D1E1', marginTop: 6 },
+  story: { color: '#C9D1E1', marginTop: 10, lineHeight: 20 },
+  playBtn: { marginTop: 12, backgroundColor: '#7C9CFF', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12, alignSelf: 'flex-start' },
+  playBtnText: { color: '#fff', fontWeight: '600' },
 });
