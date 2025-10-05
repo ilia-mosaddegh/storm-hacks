@@ -7,6 +7,9 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { PlayerProvider } from '../_providers/PlayerProvider'; 
+import { Stack } from 'expo-router';
+import { usePlayer } from '../_providers/PlayerProvider';
+
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();

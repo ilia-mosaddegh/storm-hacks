@@ -1,115 +1,61 @@
 // app/_providers/PlayerProvider.tsx
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Audio, AVPlaybackStatusSuccess, AVPlaybackSource } from 'expo-av';
+import React, { createContext, useContext, useRef, useState, useCallback } from 'react';
+import { Audio } from 'expo-av';
 
-type Track = {
-  title: string;
-  imageUrl?: string;     // shown in Now Playing
-  source: AVPlaybackSource; // require(...) or { uri: string }
-};
-
-type PlayerState = {
-  isLoaded: boolean;
+export type PlayerAPI = {
   isPlaying: boolean;
-  positionMillis: number;
-  durationMillis: number;
-  track?: Track;
-};
-
-type PlayerAPI = {
-  state: PlayerState;
-  loadAndPlay: (track: Track) => Promise<void>;
-  play: () => Promise<void>;
+  isLoading: boolean;
+  currentUrl: string | null;
+  loadAndPlay: (url: string) => Promise<void>;
   pause: () => Promise<void>;
   stop: () => Promise<void>;
-  seek: (millis: number) => Promise<void>;
 };
 
-const PlayerCtx = createContext<PlayerAPI | null>(null);
+const PlayerContext = createContext<PlayerAPI | null>(null);
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const soundRef = useRef<Audio.Sound | null>(null);
-  const [state, setState] = useState<PlayerState>({
-    isLoaded: false,
-    isPlaying: false,
-    positionMillis: 0,
-    durationMillis: 0,
-    track: undefined,
-  });
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState<string | null>(null);
 
-  // iOS: allow playback in silent mode
-  useEffect(() => {
-    Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
-    }).catch(() => {});
-    return () => {
-      soundRef.current?.unloadAsync().catch(() => {});
-    };
-  }, []);
-
-  const onStatusUpdate = (st: AVPlaybackStatusSuccess) => {
-    if (!st.isLoaded) return;
-    setState(prev => ({
-      ...prev,
-      isLoaded: true,
-      isPlaying: st.isPlaying,
-      positionMillis: st.positionMillis ?? 0,
-      durationMillis: st.durationMillis ?? 0,
-    }));
-  };
-
-  const unloadSound = async () => {
+  const unload = useCallback(async () => {
     if (soundRef.current) {
       try { await soundRef.current.unloadAsync(); } catch {}
-      soundRef.current.setOnPlaybackStatusUpdate(null as any);
       soundRef.current = null;
     }
-  };
+  }, []);
 
-  const loadAndPlay = async (track: Track) => {
-    await unloadSound();
-    const { sound } = await Audio.Sound.createAsync(track.source, { shouldPlay: true });
-    soundRef.current = sound;
-    sound.setOnPlaybackStatusUpdate((st) => {
-      if (st && 'isLoaded' in st && st.isLoaded) onStatusUpdate(st);
-    });
-    setState({
-      isLoaded: true,
-      isPlaying: true,
-      positionMillis: 0,
-      durationMillis: 0,
-      track,
-    });
-  };
+  const loadAndPlay = useCallback(async (url: string) => {
+    setIsLoading(true);
+    try {
+      await unload();
+      const { sound } = await Audio.Sound.createAsync({ uri: url }, { shouldPlay: true });
+      soundRef.current = sound;
+      setCurrentUrl(url);
+      setIsPlaying(true);
+      sound.setOnPlaybackStatusUpdate(s => { if (s.isLoaded) setIsPlaying(s.isPlaying); });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [unload]);
 
-  const play = async () => {
-    if (!soundRef.current) return;
-    await soundRef.current.playAsync();
-  };
+  const pause = useCallback(async () => { if (soundRef.current) await soundRef.current.pauseAsync(); }, []);
+  const stop  = useCallback(async () => {
+    if (soundRef.current) {
+      await soundRef.current.stopAsync();
+      await soundRef.current.setPositionAsync(0);
+      setIsPlaying(false);
+    }
+  }, []);
 
-  const pause = async () => {
-    if (!soundRef.current) return;
-    await soundRef.current.pauseAsync();
-  };
-
-  const stop = async () => {
-    if (!soundRef.current) return;
-    await soundRef.current.stopAsync();
-  };
-
-  const seek = async (millis: number) => {
-    if (!soundRef.current) return;
-    await soundRef.current.setPositionAsync(millis);
-  };
-
-  const api: PlayerAPI = { state, loadAndPlay, play, pause, stop, seek };
-  return <PlayerCtx.Provider value={api}>{children}</PlayerCtx.Provider>;
+  const value: PlayerAPI = { isPlaying, isLoading, currentUrl, loadAndPlay, pause, stop };
+  return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }
 
-export const usePlayer = () => {
-  const ctx = useContext(PlayerCtx);
+/** <-- THIS is the export your other files should import */
+export function usePlayer(): PlayerAPI {
+  const ctx = useContext(PlayerContext);
   if (!ctx) throw new Error('usePlayer must be used within PlayerProvider');
   return ctx;
-};
+}
